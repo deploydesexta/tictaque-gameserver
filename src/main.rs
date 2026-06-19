@@ -33,6 +33,14 @@ async fn main() -> anyhow::Result<()> {
 
     let redis_client = redis::Client::open(cfg.redis_url.as_str())?;
 
+    // Fail fast if Redis is unreachable.
+    let mut test_conn = redis_client.get_multiplexed_async_connection().await?;
+    redis::cmd("PING")
+        .query_async::<String>(&mut test_conn)
+        .await
+        .map_err(|e| anyhow::anyhow!("Redis ping failed: {}", e))?;
+    info!("Redis connection OK");
+
     let state = AppState {
         redis_client,
         connections: ConnectionRegistry::new(),
